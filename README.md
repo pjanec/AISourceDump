@@ -176,3 +176,23 @@ def do_something():
 ```
 
 As you can see, each file's content is clearly separated by a header that shows its full relative path within the input directory.
+
+
+
+
+## 6. **Intelligent Output File Numbering**
+
+To make running the script repeatedly more convenient, the output file naming logic has been improved. It no longer just finds the next available empty slot, but instead continues the sequence from the highest number it finds.
+
+Here’s how it works:
+
+1. **Scans for Existing Files**: When you specify an output name like `my_dump`, the script scans the directory for all files that already match the pattern, such as `my_dump.txt` and `my_dump_*.txt`.  
+2. **Finds the Highest Number**: It then identifies the largest number used in any of the existing filenames.  
+3. **Creates the Next File**: The new output file is created by incrementing the highest found number by one.
+
+#### **Examples:**
+
+* If **no files** named `my_dump...` exist, it will create: `my_dump.txt`  
+* If `my_dump.txt` **exists**, it will create: `my_dump_1.txt`  
+* If `my_dump.txt` and `my_dump_1.txt` exist, it will create: `my_dump_2.txt`  
+* If `my_dump.txt`, `my_dump_1.txt`, and `my_dump_5.txt` exist, it finds that `5` is the highest number and creates: `my_dump_6.txt`

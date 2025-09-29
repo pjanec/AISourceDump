@@ -3,6 +3,7 @@ import sys
 import argparse
 import pathspec
 from collections import deque
+import re
 
 # --- Git Root Cache ---
 # Caches found git roots to avoid repeated upward searches in subdirectories.
@@ -31,22 +32,47 @@ def find_git_root(start_path):
 
 def get_unique_output_filename(base_path):
     """
-    Finds an available output filename. If base_path exists, it appends a
-    counter, e.g., output_1.txt.
+    Finds an available output filename. If base_path exists (e.g., dump.txt),
+    it scans for existing numbered files (dump_1.txt, dump_123.txt) and creates
+    the next one in sequence (dump_124.txt).
     """
     if not os.path.splitext(base_path)[1]:
         base_path += '.txt'
-    
-    if not os.path.exists(base_path):
-        return base_path
-        
+
     base, ext = os.path.splitext(base_path)
-    counter = 1
-    while True:
-        candidate = f"{base}_{counter}{ext}"
-        if not os.path.exists(candidate):
-            return candidate
-        counter += 1
+    directory = os.path.dirname(base) or '.'
+    filename_base = os.path.basename(base)
+    
+    # Regex to match 'filename_base.ext' or 'filename_base_NUMBER.ext'
+    pattern = re.compile(f"^{re.escape(filename_base)}(?:_(\d+))?{re.escape(ext)}$")
+    
+    max_num = -1
+    base_file_exists = False
+
+    try:
+        for filename in os.listdir(directory):
+            match = pattern.match(filename)
+            if match:
+                if match.group(1): # It's a numbered file
+                    num = int(match.group(1))
+                    if num > max_num:
+                        max_num = num
+                else: # It's the base file without a number
+                    base_file_exists = True
+    except FileNotFoundError:
+        # Directory doesn't exist yet, so the original base_path is fine
+        return base_path
+
+    if not base_file_exists and max_num == -1:
+        # No files with this base name exist yet
+        return base_path
+    
+    # If base file exists but no numbered files, the highest "number" is 0
+    if base_file_exists and max_num == -1:
+        max_num = 0
+
+    next_num = max_num + 1
+    return f"{base}_{next_num}{ext}"
 
 def find_and_load_ignore_files(stop_dir, current_dir, ignore_filenames):
     """
@@ -162,6 +188,11 @@ def walk_and_process(outfile, input_dir, allowed_extensions, spec=None, use_giti
     Helper function to perform the directory walk and file processing.
     """
     for root, dirs, files in os.walk(input_dir, topdown=True):
+        # In git-aware mode, explicitly and always ignore the .git directory.
+        # This is a fundamental behavior of Git itself.
+        if use_gitignore and '.git' in dirs:
+            dirs.remove('.git')
+
         current_spec = spec
         if current_spec is None:
             # Determine the search boundary and filenames based on the mode
