@@ -24,7 +24,13 @@ It’s designed to be **fast**, **flexible**, and **git-aware**.
   python dump.py src/ my_dump.txt
   ```
 * **Git-Aware** — Automatically respects your project’s `.gitignore` file.
-* **Powerful Filtering** — Uses the same syntax and logic as `.gitignore`, including exclusions (`*.log`) and re-inclusions (`!important.log`).
+* **Powerful Two-Stage Filtering** — Uses a .gitignore-style syntax with a clear distinction between:
+
+  * `+` (Additive Include): Re-includes files but respects your `.gitignore`.
+
+  * `!` (Force Include): Re-includes files and ignores your `.gitignore`.
+
+  * `-` (Exclude): Optionally use `-` for explicit exclusions (e.g., `_*\.log`).
 * **Hierarchical** — Looks for `.dumpignore` files in subdirectories, just like Git.
 * **Flexible & Explicit** — Override defaults using `--rule` or `--filter-file` for predictable, repeatable dumps.
 * **Smart Output** — Automatically creates unique, numbered output files (e.g., `my_dump_1.txt`) if the target already exists.
@@ -49,9 +55,9 @@ It’s designed to be **fast**, **flexible**, and **git-aware**.
 | Flag                   | Description                                                                     |
 | ---------------------- | ------------------------------------------------------------------------------- |
 | `--filter-file <path>` | Use a `.dumpignore`-style filter file. Can be repeated. Triggers Explicit Mode. |
-| `--rule "<pattern>"`   | Add inline rules (multiple allowed). Triggers Explicit Mode.                    |
-| `--no-gitignore`       | Disable `.gitignore` usage.                                                     |
-| `--no-dumpignore`      | Disable hierarchical `.dumpignore` search (default mode only).                  |
+| `--rule "<pattern>"`   | Add inline rules (multiple allowed). Triggers Explicit Mode. <br> &nbsp;&nbsp; `+*.py`: Additively include (respects .gitignore) <br> &nbsp;&nbsp; `!*.md`: Force include (ignores .gitignore) <br> &nbsp;&nbsp; `*.tmp` or `_* .tmp`: Explicitly exclude |
+| `--no-gitignore`       | Disable the **Stage 2** `.gitignore` filter.                                    |
+| `--no-dumpignore`      | Disable hierarchical `.dumpignore` search (Stage 1 filter in default mode).     |
 
 ---
 
@@ -77,16 +83,18 @@ python dump.py src/ project_dump.txt
 
 ---
 
-### 2️⃣ Dump a Project Using a Custom "Allow-List"
+### 2️⃣ Dump a Project Using a Custom "Allow-List" (Recommended)
+
+This creates an "allow-list" that respects your `.gitignore` rules.
 
 **File: `api.dumpignore`**
 
 ```bash
 # 1. Ignore everything
 *
-# 2. Re-include only the api folder and the main readme
-!api/
-!README.md
+# 2. Additively re-include the api folder and the main readme
++api/
++README.md
 ```
 
 **Command:**
@@ -104,35 +112,46 @@ Dump *only* Python files from the entire project, while still respecting `.gitig
 > Note: Using `*` first ensures we switch to “allow-list” mode.
 
 ```bash
-python dump.py . py_dump.txt --rule "*" --rule "!*.py"
+python dump.py . py_dump.txt --rule "*" --rule "+*.py"
 ```
 
 ---
 
-## 🧠 How Filtering Works
+## 🧠 How Filtering Works: The Two-Stage Filter
 
-The filtering logic is **identical** to `.gitignore`.
+The script's logic is more powerful than `.gitignore` because it uses two distinct stages.
 
-### 🔸 The Golden Rule: “Last Match Wins”
+### 🔸 Stage 1: The "User" Filter (Your Rules)
 
-1. Every file is **included** by default.
-2. The script builds a list of rules from `.gitignore` and `.dumpignore`.
-3. The **last matching rule** determines inclusion or exclusion.
+This filter uses rules from `.dumpignore`, `--filter-file`, or `--rule`. It answers the question: "What did you explicitly tell me to do?"
 
-### 🔸 Rule Syntax
+It has 4 possible outcomes for every file:
 
-* **Comments:** Lines starting with `#` are ignored.
-* **Exclusions:**
+1.  **Force Include (`!`)**: The last matching rule was a `!` (e.g., `!README.md`).
+2.  **Additive Include (`+`)**: The last matching rule was a `+` (e.g., `+src/`).
+3.  **Explicit Exclude (`-` or none)**: The last matching rule was an exclude (e.g., `*`, `_* .log`, or `*.log`).
+4.  **Default Include**: No Stage 1 rule matched the file.
 
-  ```bash
-  build/
-  *.log
-  ```
-* **Re-Inclusions:**
+### 🔸 Stage 2: The "Project" Filter (`.gitignore`)
 
-  ```bash
-  !src/important.log
-  ```
+This filter runs only if Stage 1 resulted in **Additive Include** or **Default Include**. It answers the question: "Is this file ignored by the project's `.gitignore`?"
+
+### 🔸 Final Decision Logic
+
+* If Stage 1 result is **Force Include** -> **INCLUDE** (Stage 2 is skipped)
+* If Stage 1 result is **Explicit Exclude** -> **SKIP** (Stage 2 is skipped)
+* If Stage 1 result is **Additive** or **Default**:
+
+    * ...and file **is** in `.gitignore` -> **SKIP**
+
+    * ...and file **is NOT** in `.gitignore` -> **INCLUDE**
+
+### 🔸 New Rule Syntax
+
+* **Comments:** `#`
+* **Exclusions:** `build/`, `*.log` (or `-build/`, `_* .log`)
+* **Additive Include (`+`)**: `+src/` (Include this, but check `.gitignore`)
+* **Force Include (`!`)**: `!README.md` (Include this, no matter what)
 
 ---
 
@@ -141,7 +160,11 @@ The filtering logic is **identical** to `.gitignore`.
 ### 🧩 Mode 1: Hierarchical Mode (Default)
 
 * **When:** No `--rule` or `--filter-file` provided.
-* **Behavior:** Works like Git — merges `.gitignore` and `.dumpignore` hierarchically.
+* **Behavior:**
+
+    * **Stage 1 (User Rules):** Built by finding and applying `.dumpignore` files in each directory.
+
+    * **Stage 2 (Project Rules):** A single ruleset loaded from the root `.gitignore`.
 * **Use Case:** Default mode for multi-directory projects.
 
 ```bash
@@ -153,12 +176,11 @@ python dump.py . my_project_dump.txt
 ### ⚙️ Mode 2: Explicit Filter Mode (Static)
 
 * **When:** At least one `--rule` or `--filter-file` is used.
-* **Behavior:** Uses one static rule list and ignores subdirectory `.dumpignore`.
-* **Rule Loading Order:**
+* **Behavior:** Ignores all `.dumpignore` files in subdirectories.
 
-  1. `.gitignore` (unless `--no-gitignore`)
-  2. `--filter-file` (in order given)
-  3. `--rule` (in order given)
+    * **Stage 1 (User Rules):** A single ruleset built only from `--filter-file` or `--rule` arguments.
+
+    * **Stage 2 (Project Rules):** A single ruleset loaded from the root `.gitignore`.
 * **Use Case:** Deterministic “build-only” or “API-only” dumps.
 
 ---
@@ -277,8 +299,8 @@ Create a minimal, dependency-free code dump for an LLM to analyze your project�
 ```bash
 # Ignore everything first, then re-include only source code and main README
 echo "*" > llm.dumpignore
-echo "!src/" >> llm.dumpignore
-echo "!README.md" >> llm.dumpignore
+echo "+src/" >> llm.dumpignore
+echo "+README.md" >> llm.dumpignore
 
 python dump.py . llm_context.txt --filter-file llm.dumpignore
 ```
@@ -314,9 +336,9 @@ python dump.py . project_archive.txt --filter-file archive.dumpignore
 ```bash
 # api_only.dumpignore
 *
-!src/api/
-!docs/api/
-!README.md
++src/api/
++docs/api/
++README.md
 
 python dump.py . api_only.txt --filter-file api_only.dumpignore
 ```
@@ -354,9 +376,9 @@ python dump.py . combined.txt \
 
 ---
 
-## 🧪 6. Include One Log File from .gitignore
+## 🧪 6. Force-Include a File from .gitignore
 
-If `.gitignore` excludes `*.log`, but you need one file:
+If `.gitignore` excludes `*.log`, but you need one specific log file, use `!` to force its inclusion (bypassing Stage 2).
 
 ```bash
 python dump.py . debug_dump.txt --rule "!logs/startup.log"
