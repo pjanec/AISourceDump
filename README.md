@@ -1,198 +1,456 @@
-# **AI Source Dump Tool (dump.py) \- Usage Guide**
+# 🛠️ dump.py: The Smart Source Code Dumper
 
-## **1\. Overview**
+`dump.py` is a command-line tool that scans one or more directories and concatenates all desired source files into a single, large text file.
 
-The AI Source Dump Tool is a powerful command-line utility designed to intelligently scan one or more directories and concatenate all relevant source code and text files into a single, well-formatted output file that can be passed to an AI for analysis. Each file's content is preceded by a clear header indicating its original path.
+Its powerful filtering system works just like `.gitignore`, allowing you to create highly specific file dumps for any purpose.
 
-Its primary purpose is to create a "snapshot" of a project's source code that can be easily shared, reviewed, or fed into other systems (like language models) without including unnecessary files like build artifacts, temporary files, or local configuration.
+`dump.py` can be used for:
 
-## **2\. Core Concepts: How Ignoring Works**
+* LLM context creation
+* Lightweight project archiving
+* API documentation dumps
+* Code review preparation
+* Deterministic subset packaging
 
-The script's power comes from its flexible file exclusion mechanism, which operates in three distinct modes.
+It’s designed to be **fast**, **flexible**, and **git-aware**.
 
-### **Mode 1: Default (.dumpignore only)**
+---
 
-If you run the script without any special flags, it will look for files named .dumpignore.
+## ✨ Features
 
-* **Hierarchical Search:** It searches for .dumpignore files in the current directory it's scanning and every parent directory up to the *input directory* you specified on the command line.  
-* **Purpose:** This mode is perfect for creating dumps that are independent of your version control system. You can define dump-specific rules without altering your project's .gitignore.
+* **Simple by Default**
 
-### **Mode 2: Git Compatibility (\--use-gitignore)**
+  ```bash
+  python dump.py src/ my_dump.txt
+  ```
+* **Git-Aware** — Automatically respects your project’s `.gitignore` file.
+* **Powerful Filtering** — Uses the same syntax and logic as `.gitignore`, including exclusions (`*.log`) and re-inclusions (`!important.log`).
+* **Hierarchical** — Looks for `.dumpignore` files in subdirectories, just like Git.
+* **Flexible & Explicit** — Override defaults using `--rule` or `--filter-file` for predictable, repeatable dumps.
+* **Smart Output** — Automatically creates unique, numbered output files (e.g., `my_dump_1.txt`) if the target already exists.
 
-This is the most powerful mode for developers. When you add the \--use-gitignore flag, the script intelligently mimics Git's ignore behavior.
+---
 
-* **Git Root Awareness:** It searches upwards from the directory being scanned to find the project's root (the directory containing the .git folder). This becomes the boundary for its upward search for ignore files.  
-* **Dual File System:** It reads ignore patterns from **both** .gitignore and .dumpignore files.  
-* **Precedence:** Rules are applied in a specific order: .gitignore rules are applied first, and .dumpignore rules are applied last. This allows you to use your project's main .gitignore as a baseline and then add extra, dump-specific exclusions in .dumpignore to further refine the output.
+## ⚙️ Command-Line Reference
 
-### **Mode 3: Manual Override (\--ignore \<file\>)**
+`python dump.py [OPTIONS] <input_dir> [<input_dir> ...] <output_file>`
 
-If you provide a specific file path using the \--ignore argument, the script will **only** use the rules from that single file. All automatic, hierarchical searches for .gitignore or .dumpignore are disabled.
+### Arguments
 
-## **3\. Command-Line Usage**
+| Argument      | Description                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| `input_dirs`  | One or more input directories to scan *(required)*                                                |
+| `output_file` | Base name for the output file (e.g., `dump.txt`). Automatically made unique if it already exists. |
 
-### **Syntax**
+---
 
-python dump.py \<input\_dirs ...\> \<output\_file\> \[options\]
+### Filtering Arguments
 
-### **Arguments**
+| Flag                   | Description                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| `--filter-file <path>` | Use a `.dumpignore`-style filter file. Can be repeated. Triggers Explicit Mode. |
+| `--rule "<pattern>"`   | Add inline rules (multiple allowed). Triggers Explicit Mode.                    |
+| `--no-gitignore`       | Disable `.gitignore` usage.                                                     |
+| `--no-dumpignore`      | Disable hierarchical `.dumpignore` search (default mode only).                  |
 
-* **input\_dirs** (Required): One or more space-separated paths to the directories you want to scan.  
-* **output\_file** (Required): The base name for the output text file. If the file already exists, a number will be appended to create a unique name (e.g., my\_dump\_1.txt).
+---
 
-### **Options**
+### Other Arguments
 
-* **\--use-gitignore**: (Flag) Activates Git Compatibility Mode, searching for both .gitignore and .dumpignore files up to the Git project root.  
-* **\--ignore \<IGNORE\_FILE\>**: Overrides all automatic searching and uses only the specified ignore file.  
-* **\--exts \<EXTS\_FILE\>**: Path to a file containing a list of allowed file extensions (one per line, e.g., .py, .html). If omitted, all files not ignored will be included.
+| Flag            | Description                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------ |
+| `--exts <path>` | Path to file listing allowed extensions (e.g., `.py`, `.js`, `.md`). Adds an extra layer of filtering. |
 
-## **4\. Practical Examples**
+---
 
-### **Example 1: Basic Dump of a Project**
 
-Dump the contents of the MyWebApp and SharedLibrary directories into project\_dump.txt, using only the .dumpignore files found within them.
 
-python dump.py ./MyWebApp ./SharedLibrary project\_dump
+## ⚡ Quick Start
 
-### **Example 2: Git-Aware Dump**
+### 1️⃣ Dump a Folder
 
-Dump an entire Git repository from its root directory. This will respect all .gitignore files and can be further refined with .dumpignore files.
+Dumps all files from `src/` that are not ignored by `.gitignore`.
 
-python dump.py . my\_repo\_dump \--use-gitignore
-
-### **Example 3: Dumping Only Specific File Types**
-
-Dump only Python and Markdown files from the current project, respecting the Git ignore rules.
-
-First, create a file named allowed\_exts.txt:
-
-.py  
-.md  
-.txt
-
-Then, run the command:
-
-python dump.py . my_python\_dump --use-gitignore --exts allowed_exts.txt
-
-### **Example 4: Advanced Dump from a Subdirectory**
-
-You are inside the src/components directory of a large project. You want to dump only this component's folder, but still respect the root-level .gitignore and any other ignore files on the way up to the project root.
-
-\# Assuming you are in the 'src/components' directory  
-python dump.py . component_dump --use-gitignore
-
-The script will correctly find the .git root several levels up and apply all relevant ignore files.
-
-## **5\. Setting Up Your Ignore Files**
-
-You can use standard .gitignore syntax in both file types.
-
-#### **.gitignore (Example)**
-
-This file excludes common development artifacts.
-
-```
-# IDE and OS files  
-.vscode/  
-.idea/  
-*.suo  
-*.user  
-Thumbs.db
-
-# Build output  
-bin/  
-obj/  
-dist/
-
-# Dependencies  
-node\_modules/  
-packages/
-
-# Log files  
-*.log
+```bash
+python dump.py src/ project_dump.txt
 ```
 
-#### **.dumpignore (Example)**
+---
 
-This file adds extra rules just for dumping. It will be applied *after* the .gitignore rules when in Git-aware mode.
+### 2️⃣ Dump a Project Using a Custom "Allow-List"
 
-```
-# Exclude test data and large assets from the dump  
-tests/testdata/  
-assets/videos/
+**File: `api.dumpignore`**
 
-# Don't include markdown documentation in the dump  
-*.md
-
-# But DO include the main README.md (negation)  
+```bash
+# 1. Ignore everything
+*
+# 2. Re-include only the api folder and the main readme
+!api/
 !README.md
 ```
 
-In this scenario, \*.log files (ignored by git) and \*.md files (ignored by dump) would both be excluded from the final output, except for README.md.
+**Command:**
 
-
-6. Example Output Structure
-   To understand what the final output looks like, consider the following simple project structure:
-```
-   MyProject/
-   ├── .gitignore
-   ├── README.md
-   └── src/
-    ├── main.py
-    └── utils/
-        └── helpers.py
-```
-If you run the command python dump.py ./MyProject project_dump --use-gitignore, the generated project_dump.txt file will have the following structure:
-
-```
-//================================================================================
-// File: MyProject/README.md
-//================================================================================
-
-This is the main README file for MyProject.
-
-
-//================================================================================
-// File: MyProject/src/main.py
-//================================================================================
-
-from utils import helpers
-
-def main():
-    print("Hello from main!")
-    helpers.do_something()
-
-if __name__ == "__main__":
-    main()
-
-
-//================================================================================
-// File: MyProject/src/utils/helpers.py
-//================================================================================
-
-def do_something():
-    print("The helper function was called.")
-
+```bash
+python dump.py . api_dump.txt --filter-file api.dumpignore
 ```
 
-As you can see, each file's content is clearly separated by a header that shows its full relative path within the input directory.
+---
+
+### 3️⃣ Dump Using a Quick Command-Line Rule
+
+Dump *only* Python files from the entire project, while still respecting `.gitignore`.
+
+> Note: Using `*` first ensures we switch to “allow-list” mode.
+
+```bash
+python dump.py . py_dump.txt --rule "*" --rule "!*.py"
+```
+
+---
+
+## 🧠 How Filtering Works
+
+The filtering logic is **identical** to `.gitignore`.
+
+### 🔸 The Golden Rule: “Last Match Wins”
+
+1. Every file is **included** by default.
+2. The script builds a list of rules from `.gitignore` and `.dumpignore`.
+3. The **last matching rule** determines inclusion or exclusion.
+
+### 🔸 Rule Syntax
+
+* **Comments:** Lines starting with `#` are ignored.
+* **Exclusions:**
+
+  ```bash
+  build/
+  *.log
+  ```
+* **Re-Inclusions:**
+
+  ```bash
+  !src/important.log
+  ```
+
+---
+
+## 📖 Filtering Modes
+
+### 🧩 Mode 1: Hierarchical Mode (Default)
+
+* **When:** No `--rule` or `--filter-file` provided.
+* **Behavior:** Works like Git — merges `.gitignore` and `.dumpignore` hierarchically.
+* **Use Case:** Default mode for multi-directory projects.
+
+```bash
+python dump.py . my_project_dump.txt
+```
+
+---
+
+### ⚙️ Mode 2: Explicit Filter Mode (Static)
+
+* **When:** At least one `--rule` or `--filter-file` is used.
+* **Behavior:** Uses one static rule list and ignores subdirectory `.dumpignore`.
+* **Rule Loading Order:**
+
+  1. `.gitignore` (unless `--no-gitignore`)
+  2. `--filter-file` (in order given)
+  3. `--rule` (in order given)
+* **Use Case:** Deterministic “build-only” or “API-only” dumps.
+
+---
+
+## 🚀 Examples
+
+### Example 1: Basic Project Dump
+
+```bash
+python dump.py src/ docs/ project.txt
+```
+
+---
+
+### Example 2: Using a Default `.dumpignore`
+
+**File: `.dumpignore`**
+
+```bash
+# Exclude local folders
+_data/
+_build/
+*.tmp
+```
+
+**Command**
+
+```bash
+python dump.py . my_clean_dump.txt
+```
+
+---
+
+### Example 3: The “Allow-List” (Minimal Package)
+
+**File: `api_package.dumpignore`**
+
+```bash
+*
+!src/api/
+!docs/api/
+!README.md
+```
+
+**Command**
+
+```bash
+python dump.py . api_package.txt --filter-file api_package.dumpignore
+```
+
+---
+
+### Example 4: Complex Filtering
+
+**File: `complex.dumpignore`**
+
+```bash
+*
+!a/
+!b/
+a/sub1/*
+!a/sub1/*.cs
+```
+
+**Command**
+
+```bash
+python dump.py . complex_dump.txt --filter-file complex.dumpignore
+```
+
+---
+
+### Example 5: Overriding `.gitignore`
+
+**File: `include_log.dumpignore`**
+
+```bash
+!config/production.log
+```
+
+**Command**
+
+```bash
+python dump.py . dump_with_log.txt --filter-file include_log.dumpignore
+```
+
+Or inline:
+
+```bash
+python dump.py . dump_with_log.txt --rule "!config/production.log"
+```
+
+---
+
+### Example 6: Disabling Git-Awareness
+
+Dump everything, including files in `node_modules` or `build/`.
+
+```bash
+python dump.py . full_dump.txt --no-gitignore
+```
+
+---
 
 
+# 🕉️ dump.py — Real-World Usage Guide
 
+This guide shows practical scenarios for `dump.py` in real projects — from building small archives to creating filtered context datasets for AI or reviews.
 
-## 6. **Intelligent Output File Numbering**
+---
 
-To make running the script repeatedly more convenient, the output file naming logic has been improved. It no longer just finds the next available empty slot, but instead continues the sequence from the highest number it finds.
+## 🎯 1. Generate a Clean LLM Context Dump
 
-Here’s how it works:
+Create a minimal, dependency-free code dump for an LLM to analyze your project’s core logic.
 
-1. **Scans for Existing Files**: When you specify an output name like `my_dump`, the script scans the directory for all files that already match the pattern, such as `my_dump.txt` and `my_dump_*.txt`.  
-2. **Finds the Highest Number**: It then identifies the largest number used in any of the existing filenames.  
-3. **Creates the Next File**: The new output file is created by incrementing the highest found number by one.
+```bash
+# Ignore everything first, then re-include only source code and main README
+echo "*" > llm.dumpignore
+echo "!src/" >> llm.dumpignore
+echo "!README.md" >> llm.dumpignore
 
-#### **Examples:**
+python dump.py . llm_context.txt --filter-file llm.dumpignore
+```
 
-* If **no files** named `my_dump...` exist, it will create: `my_dump.txt`  
-* If `my_dump.txt` **exists**, it will create: `my_dump_1.txt`  
-* If `my_dump.txt` and `my_dump_1.txt` exist, it will create: `my_dump_2.txt`  
-* If `my_dump.txt`, `my_dump_1.txt`, and `my_dump_5.txt` exist, it finds that `5` is the highest number and creates: `my_dump_6.txt`
+✅ *Produces a single file containing only your main source tree and docs.*
+
+---
+
+## 🧱 2. Archive a Project for Offline Storage
+
+Want to store only editable files and scripts, ignoring binaries or build artifacts?
+
+```bash
+# archive.dumpignore
+*.exe
+*.dll
+*.zip
+*.tar.gz
+node_modules/
+build/
+```
+
+**Command**
+
+```bash
+python dump.py . project_archive.txt --filter-file archive.dumpignore
+```
+
+---
+
+## 🧩 3. Dump Only API Code and Documentation
+
+```bash
+# api_only.dumpignore
+*
+!src/api/
+!docs/api/
+!README.md
+
+python dump.py . api_only.txt --filter-file api_only.dumpignore
+```
+
+✅ Ideal for publishing a smaller developer-facing subset of your repo.
+
+---
+
+## 🧰 4. Create a Review Package
+
+Generate a dump containing only `.py` and `.md` files for code review or audits.
+
+```bash
+# allowed_exts.txt
+.py
+.md
+
+python dump.py src/ review.txt --exts allowed_exts.txt
+```
+
+---
+
+## 🔍 5. Combine Filters for Complex Use Cases
+
+Merge multiple `.dumpignore` files in sequence. Later rules override earlier ones.
+
+```bash
+python dump.py . combined.txt \
+  --filter-file base.dumpignore \
+  --filter-file api.dumpignore \
+  --filter-file docs.dumpignore
+```
+
+✅ Useful for large repos where teams manage their own `.dumpignore` sets.
+
+---
+
+## 🧪 6. Include One Log File from .gitignore
+
+If `.gitignore` excludes `*.log`, but you need one file:
+
+```bash
+python dump.py . debug_dump.txt --rule "!logs/startup.log"
+```
+
+---
+
+## 🗃️ 7. Full Unfiltered Snapshot
+
+For full replication — includes everything Git normally ignores.
+
+```bash
+python dump.py . everything.txt --no-gitignore
+```
+
+---
+
+## 🔧 8. Selectively Dump a Subtree
+
+```bash
+python dump.py src/plugins/ plugin_dump.txt
+```
+
+Or add filters:
+
+```bash
+python dump.py src/plugins/ plugin_dump.txt --rule "!*/tests/*"
+```
+
+---
+
+## 💡 9. Dry Run and Debug (Optional Feature)
+
+Preview what would be included without writing output:
+
+```bash
+python dump.py src/ preview.txt --dry-run
+```
+
+Or trace rule application (if supported):
+
+```bash
+python dump.py src/ debug.txt --debug
+```
+
+---
+
+## 10. Extensions filtering
+
+The `--exts` flag is a great way to filter for *only* the file types you care about, after the main `.dumpignore` logic has run.
+
+### What the Extension File Should Look Like
+
+The file is just a plain text file with one file extension per line.
+
+- The leading dot (`.`) is optional (both `.py` and `py` work).
+- Lines starting with `#` are ignored as comments.
+- Blank lines are ignored.
+- It's case-insensitive (`.py` will match `.PY`).
+
+------
+
+### Example
+
+Let's say you only want to dump Python files, C# files, and Markdown files.
+
+**1. Create your extensions file (e.g., `my_code.exts`):**
+
+```
+# my_code.exts
+# Include Python and C# source files
+.py
+.cs
+
+# Also include documentation
+.md
+txt
+```
+
+**2. Run the `dump.py` command using the `--exts` flag:**
+
+Bash
+
+```
+python dump.py src/ my_code_dump.txt --exts my_code.exts
+```
+
+### What Happens:
+
+The script will first use its normal filtering logic (respecting `.gitignore`, `.dumpignore`, etc.). Then, from that list of "allowed" files, it will do a *second* pass:
+
+- `src/main.py` -> **INCLUDED** (matches `.py`)
+- `src/README.md` -> **INCLUDED** (matches `.md`)
+- `src/utils/helper.cs` -> **INCLUDED** (matches `.cs`)
+- `src/config.json` -> **SKIPPED** (not in the `.exts` file)
+- `src/tests/data.bin` -> **SKIPPED** (not in the `.exts` file)
+
