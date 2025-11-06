@@ -199,13 +199,13 @@ def compile_stage_1_rules(rules_list):
     for rule_line in rules_list:
         try:
             if rule_line.startswith('!'):
-                pattern_str = rule_line[1:]
+                pattern_str = rule_line[1:].strip()
                 outcome = FilterOutcome.FORCE_INCLUDE
             elif rule_line.startswith('+'):
-                pattern_str = rule_line[1:]
+                pattern_str = rule_line[1:].strip()
                 outcome = FilterOutcome.ADDITIVE_INCLUDE
             elif rule_line.startswith('-'):
-                pattern_str = rule_line[1:] # Support optional '-' for exclusion
+                pattern_str = rule_line[1:].strip() # Support optional '-' for exclusion
                 outcome = FilterOutcome.EXPLICIT_EXCLUDE
             else:
                 pattern_str = rule_line
@@ -391,7 +391,8 @@ def walk_and_process_static(
     outfile, input_dirs, root_dir, 
     compiled_stage_1_rules, 
     stage_2_gitignore_spec,
-    allowed_extensions, stats, args
+    allowed_extensions, stats, args,
+    is_explicit_mode=False
 ):
     """
     Processes files using a single, static set of Stage 1 rules
@@ -416,11 +417,14 @@ def walk_and_process_static(
             # We can only prune dirs that are EXPLICITLY EXCLUDED by Stage 1.
             # We cannot prune based on Stage 2 (.gitignore), because a file
             # inside a .gitignored dir might be FORCE_INCLUDED by Stage 1.
+            # MODIFICATION: Only prune in *default* mode.
+            # In explicit mode, we MUST descend into every dir
+            # to check for file-level inclusions.
             temp_dirs = []
             for d, d_path in zip(dirs, dir_paths):
                 stage_1_outcome, winning_rule = get_stage_1_outcome(d_path, compiled_stage_1_rules)
                 
-                if stage_1_outcome == FilterOutcome.EXPLICIT_EXCLUDE:
+                if (not is_explicit_mode) and (stage_1_outcome == FilterOutcome.EXPLICIT_EXCLUDE):
                     # Prune this directory
                     stats.scanned_files += 1 # Count dir as scanned
                     stats.skipped_files += 1
@@ -572,7 +576,8 @@ def collect_source_files(args, root_dir):
                     stage_2_gitignore_spec,
                     allowed_extensions,
                     stats,
-                    args
+                    args,
+                    is_explicit_mode=is_explicit_mode
                 )
             else:
                 if args.debug:

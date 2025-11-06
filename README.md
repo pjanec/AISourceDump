@@ -2,15 +2,9 @@
 
 `dump.py` is a command-line tool that scans one or more directories and concatenates all desired source files into a single, large text file.
 
-Its powerful filtering system works just like `.gitignore`, allowing you to create highly specific file dumps for any purpose.
+Its powerful filtering system works similarly to `.gitignore`, allowing you to create highly specific file dumps for any purpose.
 
-`dump.py` can be used for:
-
-* LLM context creation
-* Lightweight project archiving
-* API documentation dumps
-* Code review preparation
-* Deterministic subset packaging
+For example, the resulting file can be easily dropped to the web api of any LLM.
 
 It’s designed to be **fast**, **flexible**, and **git-aware**.
 
@@ -23,16 +17,19 @@ It’s designed to be **fast**, **flexible**, and **git-aware**.
   ```bash
   python dump.py src/ my_dump.txt
   ```
+  
 * **Git-Aware** — Automatically respects your project’s `.gitignore` file.
+
 * **Powerful Two-Stage Filtering** — Uses a .gitignore-style syntax with a clear distinction between:
 
+  * `-` (Exclude): Optionally use `-` for explicit exclusions (e.g., `-*\.log`).
   * `+` (Additive Include): Re-includes files but respects your `.gitignore`.
-
   * `!` (Force Include): Re-includes files and ignores your `.gitignore`.
 
-  * `-` (Exclude): Optionally use `-` for explicit exclusions (e.g., `_*\.log`).
 * **Hierarchical** — Looks for `.dumpignore` files in subdirectories, just like Git.
+
 * **Flexible & Explicit** — Override defaults using `--rule` or `--filter-file` for predictable, repeatable dumps.
+
 * **Smart Output** — Automatically creates unique, numbered output files (e.g., `my_dump_1.txt`) if the target already exists.
 
 ---
@@ -52,12 +49,12 @@ It’s designed to be **fast**, **flexible**, and **git-aware**.
 
 ### Filtering Arguments
 
-| Flag                   | Description                                                                     |
-| ---------------------- | ------------------------------------------------------------------------------- |
+| Flag                   | Description                                                  |
+| ---------------------- | ------------------------------------------------------------ |
 | `--filter-file <path>` | Use a `.dumpignore`-style filter file. Can be repeated. Triggers Explicit Mode. |
-| `--rule "<pattern>"`   | Add inline rules (multiple allowed). Triggers Explicit Mode. <br> &nbsp;&nbsp; `+*.py`: Additively include (respects .gitignore) <br> &nbsp;&nbsp; `!*.md`: Force include (ignores .gitignore) <br> &nbsp;&nbsp; `*.tmp` or `_* .tmp`: Explicitly exclude |
-| `--no-gitignore`       | Disable the **Stage 2** `.gitignore` filter.                                    |
-| `--no-dumpignore`      | Disable hierarchical `.dumpignore` search (Stage 1 filter in default mode).     |
+| `--rule "<pattern>"`   | Add inline rules (multiple allowed). Triggers Explicit Mode. <br> &nbsp;&nbsp; `+*.py`: Additively include (respects .gitignore) <br> &nbsp;&nbsp; `!*.md`: Force include (ignores .gitignore) <br> &nbsp;&nbsp; `*.tmp` or `-* .tmp`: Explicitly exclude |
+| `--no-gitignore`       | Disable the **Stage 2** `.gitignore` filter.                 |
+| `--no-dumpignore`      | Disable hierarchical `.dumpignore` search (Stage 1 filter in default mode). |
 
 ---
 
@@ -129,7 +126,7 @@ It has 4 possible outcomes for every file:
 
 1.  **Force Include (`!`)**: The last matching rule was a `!` (e.g., `!README.md`).
 2.  **Additive Include (`+`)**: The last matching rule was a `+` (e.g., `+src/`).
-3.  **Explicit Exclude (`-` or none)**: The last matching rule was an exclude (e.g., `*`, `_* .log`, or `*.log`).
+3.  **Explicit Exclude (`-` or none)**: The last matching rule was an exclude (e.g., `*`, `-* .log`, or `*.log`).
 4.  **Default Include**: No Stage 1 rule matched the file.
 
 ### 🔸 Stage 2: The "Project" Filter (`.gitignore`)
@@ -149,7 +146,7 @@ This filter runs only if Stage 1 resulted in **Additive Include** or **Default I
 ### 🔸 New Rule Syntax
 
 * **Comments:** `#`
-* **Exclusions:** `build/`, `*.log` (or `-build/`, `_* .log`)
+* **Exclusions:** `build/`, `*.log` (or `-build/`, `-* .log`)
 * **Additive Include (`+`)**: `+src/` (Include this, but check `.gitignore`)
 * **Force Include (`!`)**: `!README.md` (Include this, no matter what)
 
@@ -201,8 +198,8 @@ python dump.py src/ docs/ project.txt
 
 ```bash
 # Exclude local folders
-_data/
-_build/
+-data/
+-build/
 *.tmp
 ```
 
