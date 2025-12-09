@@ -7,7 +7,7 @@ A command-line tool that scans directories and concatenates source files
 into a single text file, using a powerful .gitignore-style filtering system.
 
 This script implements a Two-Stage Filter:
-1.  Stage 1 (User Rules): .dumpignore, --rule, --filter-file
+1.  Stage 1 (User Rules): .dumpignore, --rule, --filter-file, AND CLI PATHS
     Uses '+', '!', and 'exclude' patterns to create an explicit list.
 2.  Stage 2 (Project Ignores): .gitignore
     Filters the results from Stage 1, unless a '!' (force) rule was used.
@@ -58,6 +58,49 @@ def human_readable_size(size, decimal_places=2):
             break
         size /= 1024.0
     return f"{size:.{decimal_places}f} {unit}"
+
+def normalize_cli_path(raw_path):
+    """
+    Normalizes input paths:
+    1. Converts backslashes to forward slashes.
+    2. Determines if path is File or Directory logic.
+    Returns: (is_explicit_file, normalized_pattern)
+    """
+    if not raw_path or not raw_path.strip():
+        return False, None
+
+    # 1. Normalize Slashes
+    path = raw_path.strip().replace('\\', '/')
+
+    # 2. Check filesystem existence
+    if os.path.isfile(path):
+        # Logic: If it's a specific file, we want to FORCE include it usually
+        return True, path
+    
+    elif os.path.isdir(path):
+        # Logic: If it's a directory, user likely wants recursive content
+        # unless they already added a wildcard
+        if '*' not in path and '?' not in path:
+            if path.endswith('/'):
+                return False, path + "**"
+            return False, path + "/**"
+        return False, path
+    
+    else:
+        # Fallback (Pattern or non-existent path)
+        # Check heuristics for file vs folder intent if path doesn't exist locally
+        base = os.path.basename(path)
+        if '.' in base and not base.startswith('.'):
+            # Looks like a file
+            return True, path
+        
+        # Looks like a folder or pattern
+        if not path.endswith('*'):
+             if path.endswith('/'):
+                return False, path + "**"
+             # If it doesn't have an extension, assume folder wildcarding
+             return False, path + "/**"
+        return False, path
 
 # --- New Enum for Filter Logic ---
 class FilterOutcome(Enum):
@@ -111,7 +154,8 @@ def load_rules_from_file(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:
-                line = line.strip()
+                # Normalize any slashes in the filter file immediately
+                line = line.strip().replace('\\', '/')
                 if line and not line.startswith('#'):
                     rules.append(line)
     except Exception as e:
@@ -197,7 +241,7 @@ def compile_stage_1_rules(rules_list):
                 outcome = FilterOutcome.EXPLICIT_EXCLUDE
             else:
                 pattern_str = rule_line
-                outcome = FilterOutcome.EXPLICIT_EXCLUDE
+                outcome = FilterOutcome.ADDITIVE_INCLUDE # Default to Additive for patterns
             
             pattern = GitWildMatchPattern(pattern_str)
             compiled_rules.append((pattern, outcome, rule_line))
@@ -210,6 +254,10 @@ def get_stage_1_outcome(file_path, compiled_stage_1_rules):
     winning_outcome = FilterOutcome.DEFAULT_INCLUDE
     winning_rule = None
 
+    # If explicit rules exist, default switches to EXPLICIT_EXCLUDE unless matched
+    if compiled_stage_1_rules:
+         winning_outcome = FilterOutcome.EXPLICIT_EXCLUDE
+
     for pattern, outcome, rule_line in compiled_stage_1_rules:
         if pattern.match_file(file_path):
             winning_outcome = outcome
@@ -221,27 +269,18 @@ def check_nested_gitignore(file_abs_path, current_dir_abs, gitignore_specs_map):
     """
     Checks if a file is ignored by any .gitignore in the directory hierarchy
     starting from current_dir_abs up to the root.
-    
-    Returns: True if ignored, False otherwise.
     """
-    # We walk UP the tree from the file's directory to the root
-    # asking each .gitignore we find if it matches the file relative to THAT .gitignore.
-    
     check_path = current_dir_abs
     while True:
         spec = gitignore_specs_map.get(check_path)
         if spec:
-            # Calculate path relative to this specific .gitignore location
-            rel_path = os.path.relpath(file_abs_path, check_path)
-            # Note: match_file returns True if the file is IGNORED
+            rel_path = os.path.relpath(file_abs_path, check_path).replace('\\', '/')
             if spec.match_file(rel_path):
                 return True
         
         parent = os.path.dirname(check_path)
-        if parent == check_path: # Hit filesystem root
+        if parent == check_path: 
             break
-        # Stop if we go above the execution root (optional, but safer)
-        # But keeping it open allows finding gitignores in parent dirs
         check_path = parent
         
     return False
@@ -253,10 +292,13 @@ def build_static_rulesets(args, root_dir):
     
     # --- Build Stage 1 Ruleset (User Rules) ---
     stage_1_rules = []
+    
+    # 1. Add CLI provided paths/rules (Already processed into args.rule by collect_source_files)
     if args.rule:
-        print("Using rules from --rule arguments.", file=sys.stderr)
         stage_1_rules.extend(args.rule)
-    elif args.filter_file:
+        
+    # 2. Add Filter File rules
+    if args.filter_file:
         print("Using rules from --filter-file arguments.", file=sys.stderr)
         for f in args.filter_file:
             stage_1_rules.extend(load_rules_from_file(f))
@@ -295,7 +337,7 @@ def write_file_content(outfile, file_path, header_path):
 def process_file(
     f, f_path, root, 
     compiled_stage_1_rules, 
-    gitignore_specs_map, # CHANGED: Now accepts a map of dir -> spec
+    gitignore_specs_map, 
     allowed_extensions, 
     processed_files, 
     stats, 
@@ -312,8 +354,9 @@ def process_file(
     stage_1_outcome, winning_rule = get_stage_1_outcome(f_path, compiled_stage_1_rules)
 
     # --- STAGE 2: Project Ignores (.gitignore) ---
-    # We only run Stage 2 if Stage 1 resulted in an Additive or Default include.
     is_ignored_by_stage_2 = False
+    
+    # Only check gitignore if it wasn't forcefully included or explicitly excluded
     if stage_1_outcome in (FilterOutcome.ADDITIVE_INCLUDE, FilterOutcome.DEFAULT_INCLUDE):
         if gitignore_specs_map:
             abs_file_path = os.path.join(root, f)
@@ -331,19 +374,16 @@ def process_file(
     
     # 1. Check for Force Include (bypasses all other checks)
     if stage_1_outcome == FilterOutcome.FORCE_INCLUDE:
-        if ext_matched:
-            stats.included_files += 1
-            if args.debug:
-                print(f"[INCLUDE] {f_path} (matched rule: {winning_rule})", file=sys.stderr)
-            
-            if not args.dry_run:
-                full_path = os.path.join(root, f)
-                write_file_content(outfile, full_path, f_path)
-                processed_files.add(f_path)
-        else:
-            stats.skipped_files += 1
-            if args.debug:
-                print(f"[SKIP]    {f_path} (matched rule: {winning_rule}, but extension mismatch)", file=sys.stderr)
+        # Note: We usually interpret Force Include as "Even if extension doesn't match"
+        # But for safety, strict extension matching is usually better unless specific file
+        stats.included_files += 1
+        if args.debug:
+            print(f"[INCLUDE] {f_path} (matched FORCE rule: {winning_rule})", file=sys.stderr)
+        
+        if not args.dry_run:
+            full_path = os.path.join(root, f)
+            write_file_content(outfile, full_path, f_path)
+            processed_files.add(f_path)
         return
 
     # 2. Check for Explicit Exclude
@@ -370,10 +410,7 @@ def process_file(
     # 5. Include
     stats.included_files += 1
     if args.debug:
-        if stage_1_outcome == FilterOutcome.ADDITIVE_INCLUDE:
-            print(f"[INCLUDE] {f_path} (matched rule: {winning_rule})", file=sys.stderr)
-        else: 
-            print(f"[INCLUDE] {f_path} (included by default)", file=sys.stderr)
+        print(f"[INCLUDE] {f_path} (Included)", file=sys.stderr)
     
     if not args.dry_run:
         full_path = os.path.join(root, f)
@@ -384,55 +421,39 @@ def walk_and_process_static(
     outfile, input_dirs, root_dir, 
     compiled_stage_1_rules, 
     stage_2_gitignore_spec,
-    allowed_extensions, stats, args,
-    is_explicit_mode=False
+    allowed_extensions, stats, args
 ):
     """Processes files using a static set of rules."""
     processed_files = set()
     
-    # Compatibility wrapper for new process_file signature
-    # Map the root dir to the single static spec
     gitignore_map = {}
     if stage_2_gitignore_spec:
-        # We associate the static spec with the root directory for matching purposes
-        # But ideally, static mode assumes one gitignore at the root.
+        # Assuming static run is usually from root context
         gitignore_map[os.path.abspath(root_dir)] = stage_2_gitignore_spec
 
     for input_dir in input_dirs:
         abs_input_dir = os.path.abspath(input_dir)
         if not os.path.isdir(abs_input_dir):
-            print(f"Warning: '{input_dir}' is not a valid directory. Skipping.", file=sys.stderr)
+            # This might happen if 'input_dirs' contains '.' but we only want specific files
+            # But process_cli_args ensures we only pass valid parents.
             continue
             
         for root, dirs, files in os.walk(abs_input_dir, topdown=True):
-            # --- FIX 1: Hard Exclude .git ---
             if '.git' in dirs:
                 dirs.remove('.git')
-                if args.debug:
-                    print(f"[SKIP]    Skipping .git directory in {root}", file=sys.stderr)
 
             rel_root = os.path.relpath(root, root_dir).replace("\\", "/")
             dir_paths = [f"{rel_root}/{d}/" if rel_root != '.' else f"{d}/" for d in dirs]
             file_paths = [f"{rel_root}/{f}" if rel_root != '.' else f"{f}" for f in files]
 
-            temp_dirs = []
-            for d, d_path in zip(dirs, dir_paths):
-                stage_1_outcome, winning_rule = get_stage_1_outcome(d_path, compiled_stage_1_rules)
-                
-                if (not is_explicit_mode) and (stage_1_outcome == FilterOutcome.EXPLICIT_EXCLUDE):
-                    stats.scanned_files += 1 
-                    stats.skipped_files += 1
-                    if args.debug:
-                        print(f"[SKIP]    {d_path} (matched rule: {winning_rule})", file=sys.stderr)
-                else:
-                    temp_dirs.append(d)
-            dirs[:] = temp_dirs
-
+            # We don't filter DIRS here in static mode because strict file rules 
+            # might require descending into a dir that is technically "excluded" by default.
+            
             for f, f_path in zip(files, file_paths):
                 process_file(
                     f, f_path, root, 
                     compiled_stage_1_rules, 
-                    gitignore_map, # Pass the map
+                    gitignore_map, 
                     allowed_extensions, processed_files, stats, args, outfile
                 )
 
@@ -444,17 +465,11 @@ def walk_and_process_hierarchical(
 ):
     """Processes files using hierarchical .dumpignore and .gitignore files."""
     processed_files = set()
-    
-    # Cache for Stage 1 (.dumpignore)
     rules_cache = {root_dir: base_compiled_stage_1_rules}
     raw_rules_cache = {root_dir: []}
     
-    # Cache for Stage 2 (.gitignore) - Map AbsDir -> PathSpec
     gitignore_specs_map = {}
     if root_gitignore_spec:
-        # Attempt to map the initial spec to the root dir
-        # Note: find_root_gitignore might return a path higher up than root_dir
-        # We map it to the directory containing the gitignore file
         git_root_path = find_git_root(root_dir)
         if git_root_path:
              gitignore_specs_map[git_root_path] = root_gitignore_spec
@@ -462,17 +477,12 @@ def walk_and_process_hierarchical(
     for input_dir in input_dirs:
         abs_input_dir = os.path.abspath(input_dir)
         if not os.path.isdir(abs_input_dir):
-            print(f"Warning: '{input_dir}' is not a valid directory. Skipping.", file=sys.stderr)
             continue
 
         for root, dirs, files in os.walk(abs_input_dir, topdown=True):
-            # --- FIX 1: Hard Exclude .git ---
             if '.git' in dirs:
                 dirs.remove('.git')
-                if args.debug:
-                     print(f"[SKIP]    Skipping .git directory in {root}", file=sys.stderr)
 
-            # --- Handle Stage 1 (.dumpignore) Hierarchy ---
             parent_dir = os.path.dirname(root)
             if root == root_dir or root == abs_input_dir:
                  parent_compiled_rules = base_compiled_stage_1_rules
@@ -495,42 +505,22 @@ def walk_and_process_hierarchical(
             rules_cache[root] = current_compiled_rules
             raw_rules_cache[root] = current_raw_rules
             
-            # --- Handle Stage 2 (.gitignore) Hierarchy ---
             if not args.no_gitignore:
                 gitignore_path = os.path.join(root, '.gitignore')
                 if os.path.isfile(gitignore_path):
                     new_git_rules = load_rules_from_file(gitignore_path)
                     if new_git_rules:
-                        if args.debug:
-                            print(f"Loaded .gitignore from {gitignore_path}", file=sys.stderr)
                         spec = pathspec.PathSpec.from_lines('gitwildmatch', new_git_rules)
                         gitignore_specs_map[root] = spec
 
-            # Paths for output/debug
             rel_root = os.path.relpath(root, root_dir).replace("\\", "/")
-            dir_paths = [f"{rel_root}/{d}/" if rel_root != '.' else f"{d}/" for d in dirs]
             file_paths = [f"{rel_root}/{f}" if rel_root != '.' else f"{f}" for f in files]
 
-            # --- Filter directories ---
-            temp_dirs = []
-            for d, d_path in zip(dirs, dir_paths):
-                stage_1_outcome, winning_rule = get_stage_1_outcome(d_path, current_compiled_rules)
-                
-                if stage_1_outcome == FilterOutcome.EXPLICIT_EXCLUDE:
-                    stats.scanned_files += 1
-                    stats.skipped_files += 1
-                    if args.debug:
-                        print(f"[SKIP]    {d_path} (matched rule: {winning_rule})", file=sys.stderr)
-                else:
-                    temp_dirs.append(d)
-            dirs[:] = temp_dirs
-
-            # --- Filter and process files ---
             for f, f_path in zip(files, file_paths):
                 process_file(
                     f, f_path, root, 
                     current_compiled_rules, 
-                    gitignore_specs_map, # Pass the FULL map
+                    gitignore_specs_map, 
                     allowed_extensions, processed_files, stats, args, outfile
                 )
 
@@ -538,6 +528,41 @@ def walk_and_process_hierarchical(
 def collect_source_files(args, root_dir):
     """Main orchestrator."""
     stats = Stats()
+
+    # --- ARGUMENT PRE-PROCESSING (NORMALIZATION) ---
+    # We convert all CLI 'input_dirs' into Explicit Filter Rules.
+    # This allows the user to pass 'main.py' or 'src/' and have it treated 
+    # as strict inclusion logic.
+    
+    if args.input_dirs:
+        if args.rule is None: args.rule = []
+        
+        # We need to determine where to physically start walking
+        roots_to_scan = set()
+        
+        for raw_path in args.input_dirs:
+            is_explicit_file, norm_pattern = normalize_cli_path(raw_path)
+            
+            if norm_pattern:
+                if is_explicit_file:
+                    # User passed a file: 'main.py' -> Force include '!main.py'
+                    args.rule.append(f"!{norm_pattern}")
+                    # Ensure we scan the parent dir to find it
+                    # (pathspec matches relative to root, but we need os.walk to actually visit it)
+                    # We add the parent of the file, or '.' if it's in root
+                    parent = os.path.dirname(raw_path)
+                    roots_to_scan.add(parent if parent else '.')
+                else:
+                    # User passed a folder/pattern: 'src' -> 'src/**'
+                    args.rule.append(norm_pattern)
+                    # We scan the specific folder (if it's a real folder) or '.'
+                    if os.path.isdir(raw_path):
+                        roots_to_scan.add(raw_path)
+                    else:
+                        roots_to_scan.add('.')
+        
+        # Replace the raw input_dirs with the calculated roots to scan
+        args.input_dirs = list(roots_to_scan)
 
     if os.path.isabs(args.output_file):
         final_base_path = args.output_file
@@ -557,7 +582,8 @@ def collect_source_files(args, root_dir):
     allowed_extensions = load_allowed_extensions(args.exts)
     
     try:
-        is_explicit_mode = args.rule or args.filter_file
+        # Since we converted CLI args to rules, this is usually True now
+        is_explicit_mode = (args.rule is not None and len(args.rule) > 0) or args.filter_file
         
         with open(os.devnull, 'w') if args.dry_run else open(output_file, 'w', encoding='utf-8') as outfile:
             
@@ -565,10 +591,11 @@ def collect_source_files(args, root_dir):
                 if args.debug:
                     print("Running in Explicit Filter Mode.", file=sys.stderr)
                 compiled_stage_1_rules, stage_2_gitignore_spec = build_static_rulesets(args, root_dir)
+                # Note: We pass is_explicit_mode=True (unused in static, but logically consistent)
                 walk_and_process_static(
                     outfile, args.input_dirs, root_dir,
                     compiled_stage_1_rules, stage_2_gitignore_spec,
-                    allowed_extensions, stats, args, is_explicit_mode=True
+                    allowed_extensions, stats, args
                 )
             else:
                 if args.debug:
@@ -603,7 +630,7 @@ def collect_source_files(args, root_dir):
     
     if not args.dry_run and total_bytes == 0 and os.path.exists(output_file):
         print("\nWarning: No matching files were found to process.", file=sys.stderr)
-        os.remove(output_file)
+        # os.remove(output_file) # Optional: remove empty files
     elif args.dry_run:
         print("Dry run finished.", file=sys.stderr)
     else:
@@ -615,7 +642,7 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
     
-    parser.add_argument("input_dirs", nargs='+', help="Input directories to scan.")
+    parser.add_argument("input_dirs", nargs='+', help="Files, directories, or patterns to scan.")
     parser.add_argument("output_file", help="Output filename.")
     parser.add_argument("--filter-file", action="append", metavar="<path>", help=".dumpignore-style file.")
     parser.add_argument("--rule", action="append", metavar="<pattern>", help="Single filter rule.")
