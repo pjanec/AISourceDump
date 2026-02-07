@@ -9,6 +9,11 @@ For example, the resulting file can be easily dropped to the web api of any LLM.
 It’s designed to be **fast**, **flexible**, and **git-aware**.
 
 ---
+Usage in FAR user menu:
+ *  label: AI Dump selected folder
+ *  command: python "C:\Utils\AICodeDump\dump.py" !& "!?Output Filename?dump.txt!"
+
+---
 
 ## ✨ Features
 
