@@ -1,0 +1,21 @@
+# exlude all first
+- *
+
++ Shared
+
++ Agent
+# no builder
+- Agent/Builder
+- Agent/Utils
+- Agent/Code
+
++ ConsoleHost
+
++ Master
+Master/Services
+
+#+ Slave
+
+#+ FeatureTests
+
+#+ Workflows
