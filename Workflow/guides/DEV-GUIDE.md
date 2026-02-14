@@ -22,11 +22,8 @@ You are a **developer** implementing features through a structured batch system.
 
 ```
 .dev-workstream/
-├── README.md                      # This file - your workflow guide
 ├── templates/                     # Templates for your submissions
 │   ├── BATCH-REPORT-TEMPLATE.md
-│   ├── QUESTIONS-TEMPLATE.md
-│   └── BLOCKERS-TEMPLATE.md
 │
 ├── batches/                       # Your task instructions
 │   ├── BATCH-01-INSTRUCTIONS.md
@@ -132,30 +129,6 @@ cargo test                     # Rust projects
 
 **How to ask:**
 
-1. **Create questions file:**
-   ```bash
-   cp .dev-workstream/templates/QUESTIONS-TEMPLATE.md \
-      .dev-workstream/questions/BATCH-XX-QUESTIONS.md
-   ```
-
-2. **Fill it out thoroughly:**
-   ```markdown
-   ## Question 1: [Specific question]
-   
-   **Context:** [What you're trying to accomplish]
-   
-   **The Issue:** [What's unclear or blocking you]
-   
-   **What I've Tried:** [Your research/attempts]
-   
-   **Options I See:**
-   1. [Option A] - Pros: ... Cons: ...
-   2. [Option B] - Pros: ... Cons: ...
-   
-   **My Recommendation:** [If you have one]
-   
-   **Urgency:** [Blocking / Important / Can work on other tasks]
-   ```
 
 3. **Notify the Development Lead**
 
@@ -580,13 +553,10 @@ Completing a batch is an achievement. Recognize your progress.
 
 ### Templates Location
 - Report Template: `.dev-workstream/templates/BATCH-REPORT-TEMPLATE.md`
-- Questions Template: `.dev-workstream/templates/QUESTIONS-TEMPLATE.md`
-- Blockers Template: `.dev-workstream/templates/BLOCKERS-TEMPLATE.md`
 
 ### Your Work Goes Here
 - Instructions: `.dev-workstream/batches/BATCH-XX-INSTRUCTIONS.md`
 - Your Report: `.dev-workstream/reports/BATCH-XX-REPORT.md`
-- Your Questions: `.dev-workstream/questions/BATCH-XX-QUESTIONS.md`
 - Feedback: `.dev-workstream/reviews/BATCH-XX-REVIEW.md`
 
 ---

@@ -1,4 +1,6 @@
 Read the cumulative design talk document till the end to get the final idea.
+I mean it! the document is long and you MUST read it till the last line, otherwise you will not understand all ideas!
+READ IT TILL THE END, all lines!
 Check the current implementation of the system in the aspects we are going to refactor to understand what the design talk refers to.
 
 
