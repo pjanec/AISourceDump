@@ -29,11 +29,11 @@ You are the **Development Lead** managing implementation work through a structur
 ├── README.md                      # Developer workflow guide (generic)
 ├── DEV-LEAD-GUIDE.md             # This file (your guide)
 ├── TASK-TRACKER.md               # Brief checklist with task IDs (you maintain)
+├── DEBT-TRACKER.md               # P2/P3 deferred issues and technical debt (you maintain)
 │
-├── templates/                     # Reusable templates
-│   ├── BATCH-REPORT-TEMPLATE.md
-│   ├── QUESTIONS-TEMPLATE.md
-│   └── BLOCKERS-TEMPLATE.md
+├── guides/                        # Standing rules for the project
+│   ├── CODE-STANDARDS.md         # Magic numbers, SimMath, GetComponentRW, test quality
+│   └── DEV-LEAD-GUIDE.md        # This file
 │
 ├── batches/                       # Batch instructions (you write)
 │   ├── BATCH-01-INSTRUCTIONS.md
@@ -52,6 +52,11 @@ You are the **Development Lead** managing implementation work through a structur
     ├── BATCH-01-REVIEW.md
     └── ...
 ```
+
+> **DEBT-TRACKER.md** is updated during every review:
+> - Any issue that is **P1** → becomes Corrective Task 0 in the next batch (never enters the tracker)
+> - Any issue that is **P2 or P3** → added to DEBT-TRACKER.md with source, description, and target batch
+> - When resolved → mark ✅ in DEBT-TRACKER.md (do not delete rows)
 
 ### Task Tracking System
 
@@ -278,6 +283,8 @@ Make sure all the paths to tools and binary files and projects (previously used)
 #### do not duplicate design docs
 Reference the design doc precisely (use chapter names, line numbers etc.) instead of duplicating its content to the batch. developer can read the design doc himself. 
 
+#### prevent laziness
+In each batch instruction emphasize the need to finish the batch without stopping and asking if it is ok to do obvious things like running the tests and fixing the root cause until all ok. No laziness allowed. The developer should do it all until oll ok and then write the report. no useless asking for permission allowed.
 
 **For Combined Batches - MANDATORY WORKFLOW:**
 
