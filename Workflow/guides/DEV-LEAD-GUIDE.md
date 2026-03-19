@@ -26,7 +26,6 @@ You are the **Development Lead** managing implementation work through a structur
 
 ```
 .dev-workstream/
-├── README.md                      # Developer workflow guide (generic)
 ├── DEV-LEAD-GUIDE.md             # This file (your guide)
 ├── TASK-TRACKER.md               # Brief checklist with task IDs (you maintain)
 ├── DEBT-TRACKER.md               # P2/P3 deferred issues and technical debt (you maintain)
@@ -110,7 +109,7 @@ TASK-master markdown → Design docs → TASK-TRACKER.md → BATCH-XX-INSTRUCTIO
 [Brief introduction to this batch's goals]
 
 ### Required Reading (IN ORDER)
-1. **Workflow Guide:** `.dev-workstream/README.md` - How to work with batches
+1. **Workflow Guide:** `.dev-workstream/DEV-GUIDE.md` - How to work with batches
 2. **Task Definitions:** `docs\FCDC-TASK-MASTER.md ` - See TASK-XX details
 3. **Design Document:** `docs/[relevant-design-doc].md` - Technical specifications
 4. **Previous Review:** `.dev-workstream/reviews/BATCH-XX-REVIEW.md` - Learn from feedback

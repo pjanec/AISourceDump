@@ -126,6 +126,8 @@ cargo test                     # Rust projects
 - ❌ Code style preferences (follow existing patterns)
 - ❌ Language/framework basics (research first)
 - ❌ Something clearly explained in the instructions
+- ❌ Some files changed from outside - this is normal and you should adapt automatocally.
+
 
 **How to ask:**
 
