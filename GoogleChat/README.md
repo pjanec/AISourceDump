@@ -10,4 +10,4 @@
 
 Add command to FAR user menu
  - Label:
- - Command: `python "C:\Utils\AICodeDump\extract_chat.py" "!.!" "!.!.md"`
+ - Command: `python "C:\Utils\AITools\GoogleChat\extract_chat.py" "!.!" "!.!.md"`
