@@ -21,7 +21,7 @@ You are a **developer** implementing features through a structured batch system.
 ## 📁 Folder Structure
 
 ```
-.dev-workstream/
+.dev/topic/
 ├── templates/                     # Templates for your submissions
 │   ├── BATCH-REPORT-TEMPLATE.md
 │
@@ -51,7 +51,7 @@ You are a **developer** implementing features through a structured batch system.
 
 You'll be directed to a batch instruction file:
 ```
-.dev-workstream/batches/BATCH-XX-INSTRUCTIONS.md
+.dev/topic/batches/BATCH-XX-INSTRUCTIONS.md
 ```
 
 **What to do:**
@@ -170,8 +170,8 @@ cargo test                     # Rust projects
 
 1. **Copy the template:**
    ```bash
-   cp .dev-workstream/templates/BATCH-REPORT-TEMPLATE.md \
-      .dev-workstream/reports/BATCH-XX-REPORT.md
+   cp .dev/topic/.guides/BATCH-REPORT-TEMPLATE.md \
+      .dev/topic/reports/BATCH-XX-REPORT.md
    ```
 
 2. **Fill out EVERY section:**
@@ -400,7 +400,7 @@ When batch instructions include specific questions like:
 
 ### When You Receive Feedback
 
-**Review file location:** `.dev-workstream/reviews/BATCH-XX-REVIEW.md`
+**Review file location:** `.dev/topic/reviews/BATCH-XX-REVIEW.md`
 
 **Read it carefully:**
 - Understand what's approved
@@ -481,7 +481,7 @@ Completing a batch is an achievement. Recognize your progress.
 
 ### Starting a Batch
 ```
-1. Read .dev-workstream/batches/BATCH-XX-INSTRUCTIONS.md (fully)
+1. Read .dev/topic/batches/BATCH-XX-INSTRUCTIONS.md (fully)
 2. Read referenced design docs
 3. Review existing code
 4. Plan your approach
@@ -492,8 +492,8 @@ Completing a batch is an achievement. Recognize your progress.
 ```
 1. Try to find answer first (docs, existing code)
 2. If still unclear, use template:
-   cp .dev-workstream/templates/QUESTIONS-TEMPLATE.md \
-      .dev-workstream/questions/BATCH-XX-QUESTIONS.md
+   cp .dev/topic/templates/QUESTIONS-TEMPLATE.md \
+      .dev/topic/questions/BATCH-XX-QUESTIONS.md
 3. Fill out thoroughly
 4. Notify Development Lead
 5. Work on other tasks while waiting (if possible)
@@ -504,8 +504,8 @@ Completing a batch is an achievement. Recognize your progress.
 1. Self-review your work
 2. Run all tests one final time
 3. Copy template:
-   cp .dev-workstream/templates/BATCH-REPORT-TEMPLATE.md \
-      .dev-workstream/reports/BATCH-XX-REPORT.md
+   cp .dev/topic/.guides/BATCH-REPORT-TEMPLATE.md \
+      .dev/topic/reports/BATCH-XX-REPORT.md
 4. Fill out EVERY section thoroughly
 5. Include full test output
 6. Answer all specific questions
@@ -554,12 +554,12 @@ Completing a batch is an achievement. Recognize your progress.
 ## 📚 Additional Resources
 
 ### Templates Location
-- Report Template: `.dev-workstream/templates/BATCH-REPORT-TEMPLATE.md`
+- Report Template: `.dev/.guides/BATCH-REPORT-TEMPLATE.md`
 
 ### Your Work Goes Here
-- Instructions: `.dev-workstream/batches/BATCH-XX-INSTRUCTIONS.md`
-- Your Report: `.dev-workstream/reports/BATCH-XX-REPORT.md`
-- Feedback: `.dev-workstream/reviews/BATCH-XX-REVIEW.md`
+- Instructions: `.dev/topic/batches/BATCH-XX-INSTRUCTIONS.md`
+- Your Report: `.dev/topic/reports/BATCH-XX-REPORT.md`
+- Feedback: `.dev/topic/reviews/BATCH-XX-REVIEW.md`
 
 ---
 
