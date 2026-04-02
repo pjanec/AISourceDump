@@ -1,3 +1,8 @@
+---
+name: dev-lead
+description: Workflow guide for a Development Lead managing batch-based software development. Use when: writing batch instructions for a developer, reviewing a completed batch report, assessing test quality in a review, creating corrective batches for failed/partial reviews, updating TASK-TRACKER.md or TASK-DEFINITIONS.md, generating a git commit message after batch approval, planning how to group tasks into batches, or maintaining the technical debt tracker.
+---
+
 # Development Lead Guide - Batch Management System
 
 **Role:** Development Lead / Engineering Manager  
@@ -124,6 +129,8 @@ TASK-master markdown → Design docs → TASK-TRACKER.md → BATCH-XX-INSTRUCTIO
 **Why this matters:** Different developers may work on different batches. Each must be self-contained.
 
 ### Batch Instruction Structure
+
+Batches should NOT duplicate detailed instructions found elsewhere. Perfer referencing the DESIGN and TASK-DETAIL documents.
 
 Every batch instruction file should follow this structure:
 
@@ -373,8 +380,9 @@ When developer submits `.dev/[topic]/reports/BATCH-XX-REPORT.md`:
 
 
 Basic mind set when reviewing:
- - believe nothing, verify everything thoroughly
- - check especially if the unit tests fulle cover what the design wants and not something else or just partially
+ - Do not beleive just the report, verify everything thoroughly by reading and analyzing the files
+ - Check especially if the unit tests fulle cover what the design wants and not something else or just partially
+ - Check if .github\skills\CODE-STANDARDS.md and best practices are followed.
 
 #### Step 1: Read the Report (5-10 minutes)
 

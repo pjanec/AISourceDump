@@ -1,3 +1,8 @@
+---
+name: developer
+description: Workflow guide for developers working on batch-based tasks. Use when: starting work on a batch instruction file, implementing features from batch specifications, writing a batch report after completing work, handling review feedback (changes required / approved / rejected), asking clarifying questions to the development lead, or understanding quality standards for code and tests in this project.
+---
+
 # Developer Workflow Guide - Batch-Based Development
 
 **Purpose:** Guide for developers working on batch-based tasks  
@@ -97,6 +102,8 @@ You'll be directed to a batch instruction file:
    - Study similar code in the codebase
    - Match existing style and architecture
    - Don't reinvent solved problems
+   - Follow coding standards in .github\skills\CODE-STANDARDS.md and best practices.
+
 
 4. **Document as you code**
    - XML comments on public APIs

@@ -6,14 +6,14 @@ Check the current implementation of the system in the aspects we are going to re
 
 DESIGN DOCUMENT
 
-Create a detailed design document docs/DESIGN.md capturing all the final ideas from the design talk document.
+Create a detailed design document DESIGN.md capturing all the final ideas from the design talk document.
 Break the design into implementation phases and tasks.
 
 
 
 TASK DETAILS DOCUMENT
 
-Create task detail document docs/TASK-DETAIL.md containing the detailed description of every task.
+Create task detail document TASK-DETAIL.md containing the detailed description of every task.
 Each task needs a unique id and clearly in detail stated success conditions - usually a specification of unit tests.
 The task detail document should reference the chapters of the design document to avoud duplicating information.
 The task detail description together with design document should provide complete understanding for the developer.
