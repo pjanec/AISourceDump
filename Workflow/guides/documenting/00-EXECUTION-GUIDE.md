@@ -12,7 +12,7 @@
 
 1.  **LOAD**: Open `00-PROJECT-CHECKLIST.md`.
 2.  **SELECT**: Find the first item marked `[ ]` (Pending).
-3.  **ANALYZE**: Read the source code, directory structure, and existing READMEs.
+3.  **ANALYZE**: Read the source code, directory structure, ignore existing READMEs as they might be obsolete.
 4.  **WRITE**: Create the documentation file (Standards defined below).
 5.  **DISCOVER**: If you find complex patterns spanning multiple projects, add a new item to the "Emerging Relationships" section of the Checklist.
 6.  **VERIFY**: Check line count (>500) and diagram count (2-3).

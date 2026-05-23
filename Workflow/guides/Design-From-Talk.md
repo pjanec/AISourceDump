@@ -66,3 +66,10 @@ Example of a task tracker follows:
 
 - [ ] **FCDC-S006** Schema Package Migration [details](../docs/SERDATA-TASK-MASTER.md#fcdc-s006-schema-package-migration)
 - [ ] **FCDC-S007** CLI Tool Generator Infrastructure [details](../docs/SERDATA-TASK-MASTER.md#fcdc-s007-cli-tool-generator-infrastructure)
+
+
+
+FINAL CHECK
+
+Before finishing, make final review. Summarize the design talk again and check if each of the final ideas there is covered
+by the DESIGN and TASKS. Fix it if not. the DESIGN must cover each and every final idea of the design talk!

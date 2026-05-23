@@ -1,9 +1,12 @@
+The goal is to crete a project documentation so that a new developer undestands the project architecture,
+basic building block details and rules event without studying the source code. Include describe all public APIs.
+
  - Traverse all cs projects you find in thes folder and subfolder.
  - Ignore test and benchmark projects.
  - For each project analyze its source code thoroughly and write a detailed architectural document
    with ascii art block diagrams and description of the purpose, principles, expected usage (with examples),
    best practices, relations to other projects.
- - If there is a readme, take the infomration from it but at the same time check if the source code
+ - If there is a readme, ignore infomration from it and rather check if the source code
    has not diverged and the readme is still up to date (mention this doc up-to-date status in the resulting document).
  - The goal is get a detailed overview of all components. Once all csproj sources are analyzed and documented in details,
    write an overview readme document about the while solution, with links to individual partial documents
@@ -26,7 +29,7 @@
  - Basically your procedure is
      1. read instructions,
      2. look at check list and work on the first not yet finished item
-     3. process the item
+     3. process the item by delegating the work to a developer sub-agent - use model Claude Sonnet 4.6 (do not use exploration agent!!)
      4. verify the success condition (document exist, has minimum amount of lines)
      5. mark item as finished
      6. look for next unfinished one and start working on it

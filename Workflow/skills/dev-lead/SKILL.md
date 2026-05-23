@@ -25,6 +25,8 @@ You are the **Development Lead** managing implementation work through a structur
 
 **Key Principle:** Each batch may be executed by a **different developer**. Always include complete onboarding instructions.
 
+do not try to use explorer sub agent. Use Claude 4.6 Sonnet
+
 ---
 
 ## 📋 Folder Structure Overview
