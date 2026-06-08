@@ -30,7 +30,8 @@ Use these tools to delegate large tasks, refactoring, or scaffolding so you can 
 - **Use `non-blocking` for almost everything.** This is your superpower. While the worker is building the feature, you remain free to answer user questions, review other files, or prepare the next task.
 - **Use `blocking` only for trivial, fast tasks** (e.g., "Run the linter and auto-fix errors in the `src` directory").
 - **Always provide context.** The worker does not share your chat history. Tell it exactly which files to read and edit.
-- **Note:** Launching a new worker automatically kills any currently running worker.
+- **Keep the prompt concise.** Windows `cmd.exe` has a command-line length limit of ~8191 characters. If your prompt is too long, the worker launch will fail. Break large tasks into smaller, sequential worker invocations rather than packing everything into one giant prompt.
+- **Note:** Launching a new worker automatically kills any currently running worker. If the previous worker fails to die within 30 seconds, `start_worker` will return an error — in that case, try calling `kill_worker` to force-terminate it, then retry `start_worker`.
 
 ### 2. `get_worker_status`
 
@@ -55,3 +56,4 @@ Use these tools to delegate large tasks, refactoring, or scaffolding so you can 
 
 - Use this if the worker appears stuck (e.g., `get_worker_status` has shown `running` for an unusually long time with no file changes).
 - Use this if the user changes their mind about the current objective and you need to stop the worker immediately to assign a different task.
+- Use this if `start_worker` returned an error about failing to kill the previous worker — it means the old process didn't die within the 30-second grace period. Call `kill_worker` to attempt another forced termination, then retry `start_worker`.

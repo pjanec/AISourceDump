@@ -11,6 +11,37 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+/**
+ * Sanitizes an untrusted string to be safely passed as a double-quoted argument
+ * in cmd.exe. The caller MUST wrap the result in outer double quotes.
+ *
+ * Order of operations matters:
+ *  1. Strip newlines/carriage returns (execution vector)
+ *  2. Replace double quotes and backticks with single quotes (breakout + downstream)
+ *  3. Escapes % for cmd variable expansion; strips ! for delayed expansion
+ *  4. Strip non-printable control characters
+ */
+function sanitizeForCmd(input: string): string {
+  if (!input) return '';
+
+  let sanitized = input;
+
+  // 1. Strip newlines and carriage returns — replace with space
+  sanitized = sanitized.replace(/[\r\n]+/g, ' ');
+
+  // 2. Replace double quotes and backticks with single quotes
+  sanitized = sanitized.replace(/["`]/g, "'");
+
+  // 3. Neutralize variable expansion vectors
+  sanitized = sanitized.replace(/%/g, '%%'); // Escapes % in cmd
+  sanitized = sanitized.replace(/!/g, '');   // Strips ! to prevent delayed expansion
+
+  // 4. Strip non-printable control characters (0x00-0x1F, 0x7F)
+  sanitized = sanitized.replace(/[\x00-\x1F\x7F]/g, '');
+
+  return sanitized;
+}
+
 type WorkerStatus = 'idle' | 'running' | 'completed' | 'failed';
 
 class ClaudeOrchestratorServer {
@@ -45,20 +76,63 @@ class ClaudeOrchestratorServer {
   }
 
   /**
-   * Hard kills the Windows process tree.
+   * Hard kills the Windows process tree and waits for the process to actually exit.
    * Required because shell: true spawns a cmd.exe which spawns the actual tool.
+   * Returns true if the process was killed (or wasn't running), false if it failed to die within 30 seconds.
    */
-  private async killWorkerProcess(): Promise<void> {
-    if (this.currentWorkerProcess && this.currentWorkerProcess.pid) {
-      try {
-        console.error(`[Orchestrator] Killing process tree for PID ${this.currentWorkerProcess.pid}`);
-        // Windows specific task kill
-        await execAsync(`taskkill /pid ${this.currentWorkerProcess.pid} /t /f`);
-      } catch (e) {
-        console.error('[Orchestrator] Failed to kill process:', e);
-      }
+  private async killWorkerProcess(): Promise<boolean> {
+    if (!this.currentWorkerProcess || !this.currentWorkerProcess.pid) {
       this.currentWorkerProcess = null;
       this.workerStatus = 'idle';
+      return true;
+    }
+
+    const processRef = this.currentWorkerProcess;
+    const pid = processRef.pid;
+
+    try {
+      console.error(`[Orchestrator] Killing process tree for PID ${pid}`);
+
+      // If already dead, just clean up
+      if (processRef.exitCode !== null || processRef.killed) {
+        console.error(`[Orchestrator] Process ${pid} already exited`);
+        this.currentWorkerProcess = null;
+        this.workerStatus = 'idle';
+        return true;
+      }
+
+      // Issue the kill
+      await execAsync(`taskkill /pid ${pid} /t /f`);
+
+      // Wait for the process to actually exit (up to 30 seconds)
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error(`Worker process ${pid} did not terminate within 30 seconds`));
+        }, 30000);
+
+        const onClose = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
+
+        processRef.once('close', onClose);
+
+        // Check if it already died while we were setting up the listener
+        if (processRef.exitCode !== null || processRef.killed) {
+          clearTimeout(timeout);
+          processRef.removeListener('close', onClose);
+          resolve();
+        }
+      });
+
+      console.error(`[Orchestrator] Process ${pid} confirmed dead`);
+      this.currentWorkerProcess = null;
+      this.workerStatus = 'idle';
+      return true;
+    } catch (e) {
+      console.error('[Orchestrator] Failed to kill process:', e);
+      // Don't null out currentWorkerProcess on failure — the process is still running
+      return false;
     }
   }
 
@@ -87,9 +161,10 @@ class ClaudeOrchestratorServer {
       this.workerError = '';
 
       // Spawning the Claude CLI, routed through DeepSeek API.
-      // Wrap prompt in quotes for Windows cmd.exe (shell: true) to preserve spaces
-      const quotedPrompt = `"${prompt.replace(/"/g, '\\"')}"`;
-      const args = ['-p', quotedPrompt, '--dangerously-skip-permissions'];
+      // Sanitize the prompt for cmd.exe safety, then wrap in double quotes
+      const safePrompt = sanitizeForCmd(prompt);
+      const quotedPrompt = `"${safePrompt}"`;
+      const args = ['--dangerously-skip-permissions', '-p', quotedPrompt];
 
       // shell: true is required on Windows to run .cmd executables properly
       this.currentWorkerProcess = spawn('claude', args, {
@@ -195,9 +270,15 @@ class ClaudeOrchestratorServer {
         case 'start_worker': {
           const { prompt, mode, model } = request.params.arguments as { prompt: string; mode: 'blocking' | 'non-blocking'; model?: 'pro' | 'flash' };
 
-          // Auto-kill previous worker
+          // Auto-kill previous worker and wait for it to fully die
           if (this.currentWorkerProcess || this.workerStatus === 'running') {
-            await this.killWorkerProcess();
+            const killed = await this.killWorkerProcess();
+            if (!killed) {
+              return {
+                content: [{ type: 'text', text: 'Error: Failed to kill the previous worker process within 30 seconds. It may be stuck. Please try kill_worker again or manually terminate it.' }],
+                isError: true,
+              };
+            }
           }
 
           if (mode === 'non-blocking') {
@@ -245,10 +326,17 @@ class ClaudeOrchestratorServer {
         }
 
         case 'kill_worker': {
-          await this.killWorkerProcess();
-          return {
-            content: [{ type: 'text', text: 'Worker process forcefully terminated.' }],
-          };
+          const killed = await this.killWorkerProcess();
+          if (killed) {
+            return {
+              content: [{ type: 'text', text: 'Worker process forcefully terminated.' }],
+            };
+          } else {
+            return {
+              content: [{ type: 'text', text: 'Error: Failed to kill the worker process within 30 seconds. It may be stuck. Please try again or manually terminate it.' }],
+              isError: true,
+            };
+          }
         }
 
         default:
