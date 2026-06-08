@@ -23,6 +23,7 @@ Use these tools to delegate large tasks, refactoring, or scaffolding so you can 
 
 - `prompt` (string): The highly specific instruction for the worker (e.g., "Implement the login form in `src/Login.jsx` using the API definitions in `docs/api.md`").
 - `mode` (string): `"blocking"` or `"non-blocking"`.
+- `model` (string, optional): `"pro"` (default) or `"flash"`. `"pro"` uses `deepseek-v4-pro[1m]` for maximum capability; `"flash"` uses `deepseek-v4-flash` for faster, lighter tasks.
 
 **How to use effectively:**
 

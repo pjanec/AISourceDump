@@ -66,7 +66,7 @@ class ClaudeOrchestratorServer {
    * Internal function to launch the Claude Code CLI worker
    * Configured to route through DeepSeek API (see SETUP.md for prerequisites).
    */
-  private launchWorker(prompt: string): Promise<string> {
+  private launchWorker(prompt: string, model: 'pro' | 'flash' = 'pro'): Promise<string> {
     // Fail loudly if DEEPSEEK_AUTH_TOKEN is not set
     const authToken = process.env.DEEPSEEK_AUTH_TOKEN;
     if (!authToken) {
@@ -74,8 +74,12 @@ class ClaudeOrchestratorServer {
         + 'Set it to your DeepSeek API key before starting the server. '
         + 'Example: $env:DEEPSEEK_AUTH_TOKEN="sk-..."';
       console.error(`[Orchestrator] ${errMsg}`);
+      this.workerStatus = 'failed';
+      this.workerError = errMsg;
       return Promise.reject(new Error(errMsg));
     }
+
+    const modelId = model === 'flash' ? 'deepseek-v4-flash' : 'deepseek-v4-pro[1m]';
 
     return new Promise((resolve, reject) => {
       this.workerStatus = 'running';
@@ -97,9 +101,9 @@ class ClaudeOrchestratorServer {
           ANTHROPIC_BASE_URL: 'https://api.deepseek.com/anthropic',
           ANTHROPIC_AUTH_TOKEN: authToken,
           ANTHROPIC_API_KEY: '',
-          ANTHROPIC_MODEL: 'deepseek-v4-pro[1m]',
-          ANTHROPIC_DEFAULT_OPUS_MODEL: 'deepseek-v4-pro[1m]',
-          ANTHROPIC_DEFAULT_SONNET_MODEL: 'deepseek-v4-pro[1m]',
+          ANTHROPIC_MODEL: modelId,
+          ANTHROPIC_DEFAULT_OPUS_MODEL: modelId,
+          ANTHROPIC_DEFAULT_SONNET_MODEL: modelId,
           ANTHROPIC_DEFAULT_HAIKU_MODEL: 'deepseek-v4-flash',
           CLAUDE_CODE_SUBAGENT_MODEL: 'deepseek-v4-flash',
           CLAUDE_CODE_EFFORT_LEVEL: 'max',
@@ -122,8 +126,12 @@ class ClaudeOrchestratorServer {
 
       this.currentWorkerProcess.on('close', (code) => {
         console.error(`[Orchestrator] Worker ${pid} exited with code ${code}`);
+        // Guard: if killWorkerProcess() already cleaned up, don't overwrite status
+        if (this.currentWorkerProcess === null) {
+          return;
+        }
         this.currentWorkerProcess = null;
-        
+
         if (code === 0) {
           this.workerStatus = 'completed';
           resolve(this.workerOutput);
@@ -135,6 +143,10 @@ class ClaudeOrchestratorServer {
 
       this.currentWorkerProcess.on('error', (err) => {
         console.error(`[Orchestrator] Worker process error:`, err);
+        // Guard: if killWorkerProcess() already cleaned up, don't overwrite status
+        if (this.currentWorkerProcess === null) {
+          return;
+        }
         this.workerStatus = 'failed';
         this.currentWorkerProcess = null;
         reject(err);
@@ -152,7 +164,8 @@ class ClaudeOrchestratorServer {
             type: 'object',
             properties: {
               prompt: { type: 'string', description: 'The task description or prompt to give the worker.' },
-              mode: { type: 'string', enum: ['blocking', 'non-blocking'], description: 'Whether to wait for the worker to finish before responding.' }
+              mode: { type: 'string', enum: ['blocking', 'non-blocking'], description: 'Whether to wait for the worker to finish before responding.' },
+              model: { type: 'string', enum: ['pro', 'flash'], description: 'Optional. Model to use: "pro" = deepseek-v4-pro[1m] (default), "flash" = deepseek-v4-flash (faster, lighter).' }
             },
             required: ['prompt', 'mode'],
           },
@@ -180,8 +193,8 @@ class ClaudeOrchestratorServer {
       switch (request.params.name) {
         
         case 'start_worker': {
-          const { prompt, mode } = request.params.arguments as { prompt: string; mode: 'blocking' | 'non-blocking' };
-          
+          const { prompt, mode, model } = request.params.arguments as { prompt: string; mode: 'blocking' | 'non-blocking'; model?: 'pro' | 'flash' };
+
           // Auto-kill previous worker
           if (this.currentWorkerProcess || this.workerStatus === 'running') {
             await this.killWorkerProcess();
@@ -189,7 +202,7 @@ class ClaudeOrchestratorServer {
 
           if (mode === 'non-blocking') {
             // Launch and return immediately
-            this.launchWorker(prompt).catch((err: Error) => {
+            this.launchWorker(prompt, model).catch((err: Error) => {
               console.error(`[Orchestrator] Non-blocking worker failed: ${err.message}`);
             });
             return {
@@ -203,7 +216,7 @@ class ClaudeOrchestratorServer {
           } else {
             // Blocking mode
             try {
-              const output = await this.launchWorker(prompt);
+              const output = await this.launchWorker(prompt, model);
               return {
                 content: [{ type: 'text', text: `Worker completed successfully.\n\nOutput:\n${output}` }],
               };
