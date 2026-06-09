@@ -50,6 +50,7 @@ class ClaudeOrchestratorServer {
   private workerStatus: WorkerStatus = 'idle';
   private workerOutput: string = '';
   private workerError: string = '';
+  private lastStatusPollTime: number = 0;
 
   constructor() {
     this.server = new Server(
@@ -261,6 +262,17 @@ class ClaudeOrchestratorServer {
             properties: {},
           },
         },
+        {
+          name: 'wait',
+          description: 'Blocks execution for the specified number of seconds. Use this to wait before polling for worker status in non-blocking mode (e.g., wait 5 seconds, then call get_worker_status).',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              seconds: { type: 'number', description: 'Number of seconds to wait (max 300, i.e. 5 minutes).' },
+            },
+            required: ['seconds'],
+          },
+        },
       ],
     }));
 
@@ -279,6 +291,22 @@ class ClaudeOrchestratorServer {
                 isError: true,
               };
             }
+          }
+
+          // Validate prompt length after sanitization (2KB = 2048 bytes limit)
+          const MAX_PROMPT_BYTES = 2048;
+          const safePrompt = sanitizeForCmd(prompt);
+          const promptByteLength = Buffer.byteLength(safePrompt, 'utf8');
+          if (promptByteLength > MAX_PROMPT_BYTES) {
+            return {
+              content: [{
+                type: 'text',
+                text: `Error: The sanitized prompt is ${promptByteLength} bytes, which exceeds the ${MAX_PROMPT_BYTES}-byte (2KB) limit. `
+                  + `Please write your detailed instructions to a file in the project directory (e.g., using the Write tool) and pass a short prompt that points the worker to that file instead. `
+                  + `Example: "Read the instructions from .claude/worker-task.md and execute them."`,
+              }],
+              isError: true,
+            };
           }
 
           if (mode === 'non-blocking') {
@@ -311,6 +339,23 @@ class ClaudeOrchestratorServer {
         }
 
         case 'get_worker_status': {
+          // Rate limit: don't allow polling more often than once every 15 seconds
+          const now = Date.now();
+          const POLL_COOLDOWN_MS = 15000;
+          const elapsed = now - this.lastStatusPollTime;
+          if (this.lastStatusPollTime !== 0 && elapsed < POLL_COOLDOWN_MS) {
+            const waitSeconds = Math.ceil((POLL_COOLDOWN_MS - elapsed) / 1000);
+            return {
+              content: [{
+                type: 'text',
+                text: `Error: Polling too frequently. Only ${elapsed}ms since last status check — minimum cooldown is ${POLL_COOLDOWN_MS / 1000}s. `
+                  + `Please use the wait command with seconds: ${waitSeconds} to wait before polling again, rather than calling get_worker_status in a tight loop.`,
+              }],
+              isError: true,
+            };
+          }
+          this.lastStatusPollTime = now;
+
           return {
             content: [
               {
@@ -337,6 +382,25 @@ class ClaudeOrchestratorServer {
               isError: true,
             };
           }
+        }
+
+        case 'wait': {
+          const { seconds } = request.params.arguments as { seconds: number };
+
+          if (typeof seconds !== 'number' || seconds < 0 || seconds > 300) {
+            return {
+              content: [{ type: 'text', text: 'Error: seconds must be a number between 0 and 300 (5 minutes).' }],
+              isError: true,
+            };
+          }
+
+          console.error(`[Orchestrator] Waiting for ${seconds} seconds...`);
+          await new Promise<void>(resolve => setTimeout(resolve, seconds * 1000));
+          console.error(`[Orchestrator] Wait complete.`);
+
+          return {
+            content: [{ type: 'text', text: `Waited for ${seconds} second(s).` }],
+          };
         }
 
         default:
