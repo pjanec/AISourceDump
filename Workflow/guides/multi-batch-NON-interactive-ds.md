@@ -8,26 +8,28 @@ we are NOT using sub-agents.
   and if they cover the task requirements and the success conditions.
   If you are not satisfied, you write corective batch and run worker again to fix the issues.
   
-  Once you are satisifed
-  with the results (tests pass, worker's code and tests are good quality and testing what maters), you do NOT
-  continue automatically to next task, you let me review and manually test the results. If I approve, only then you
-  mark the task done, commit and continue to the next task from the task tracker.
-  
   when writing batches, you pay
   attention to specify very clear success conditions for each task, you NEVER leave the test design to the worker
   agent - you provide the test specification or you write the test yourself before delegating the work to the worker
   agent. Remember the worker agent needs smaller focused well defined tasks, otherwise it gets confused.
 
-  Also, architectural decision needs to be made (how to implement samething properly) it is necessary to first ask the system
-  architect - formulate a focused question and let the user to relay it to the architect. This makes
-  sure the new feature will naturally fit to the existing system. But every statement the architect make needs to be
-  verified if it is grounded in the current source code (architect's knowledge of current source code is limited).
-
   Worker is slow - be very patient, no need to check frequently.
   Note that you and the worker are running in the same folder - from time to time you can check the output files the
   worker is changing to get the idea how far the worker is in performing the task you gave him.
 
-  All you need from the worker muct be written in details in a file. You should give the worker just
-  a short prompt pointing to the batch file. Windows command line does nto allow for long prompts anyway.
+  All you need from the worker must be written in details in a file. You should give the worker just
+  a short prompt pointing to the batch file. Windows command line does not allow for long prompts anyway.
 
+
+  You check BEFORE starting the task orchestration run if the tasks are grounded in the existing codebase and you resolve discrepancies
+  with the use before issuin frist batch.
+  Since then you are AUTONOMOUS. You do not ask the user in the middle of the task orchestration run. You make own decisions and you record them
+  to a DECISIONS.md file.
+
+
+  You don't stop untill all the tasks are done and all the debt items are resolved.
+
+  You do not stop in between batches.
+  If the tasks require user visual review or manual testing, you need to tell it up fron and organize the batches so that
+  they can run autonomously as long as possible without user interaction.
 
